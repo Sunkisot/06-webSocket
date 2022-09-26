@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <input type="text" id="ipt">
+  <button id='btn'>发送</button>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    let ipt = document.getElementById('ipt')
+    let btn = document.getElementById('btn')
+    let socket = io('http://localhost:8025/')
+    socket.on('connect', function () {
+      console.log('a socket is connection')
+    })
+    socket.on('message', function (msg) {
+      console.log(msg)
+    })
+    btn.addEventListener('click', function () {
+      let value = ipt.value
+      socket.emit('chatMsg', value)
+      ipt.value = ''
+    })
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <div v-if='isShow'>
+      昵称：<input type="text" v-model='name'>
+      房间号： <input type="text" v-model='roomid'>
+      <button @click='into'>进入聊天室</button>
+    </div>
+    <div v-else>
+      <ul>
+        <li v-for='(item, i) in list' :key='i'>{{item.msg}}</li>
+      </ul>
+      <div>在线人数： {{ num }}</div>
+      <div>房间总人数：{{ total }}</div>
+      <input type="text" v-model='message'>
+      <button @click='send'>发送</button>
+    </div>
+
+  </div>
+  <script>
+    var app = new Vue({
+      el: '#app',
+      data: {
+        isShow: true,
+        name: '',
+        message: '',
+        roomid: '',
+        num: 0,
+        total: 0,
+        list: [],
+        socket: null,
+        timer: null,
+        reconnect: null
+      },
+      methods: {
+        onopen() {
+          console.log('客户端连接了一个socket')
+          this.checkServer()
+        },
+        onmessage(evt) {
+          let msg = JSON.parse(evt.data)
+          if (msg.num) {
+            this.num = msg.num
+            this.total = msg.total
+          }
+          if (msg.event == 'heartbeat' && msg.msg == 'ping') {
+            this.checkServer()
+            this.socket.send(JSON.stringify({
+              event: 'heartbeat',
+              msg: 'pong'
+            }))
+            return
+          }
+          if (msg.event == 'login') {
+            this.list.push({
+              msg: `欢迎${msg.name}加入聊天室`
+            })
+          } else if (msg.event == 'logout') {
+            this.list.push({
+              msg: `${msg.name}已经推出聊天室`
+            })
+          } else {
+            if (msg.name != this.name) {
+              this.list.push({
+                msg: msg.msg
+              })
+            }
+          }
+        },
+        onerror() {
+          console.log('Reconnect！')
+          clearTimeout(this.reconnect)
+          this.reconnect = setTimeout(() => {
+            console.log('reconnect websocket')
+            this.init()
+          }, 5000)
+
+        },
+        onclose() {
+          // 关闭连接
+          this.socket.close()
+        },
+        send() {
+          let data = {
+            name: this.name,
+            msg: this.name + ':' + this.message,
+            event: 'message'
+          }
+          this.socket.send(JSON.stringify(data))
+          this.list.push(data)
+          this.message = ''
+        },
+        into() {
+          const urlParams = new URLSearchParams(window.location.search)
+          const uid = urlParams.get('uid')
+          if (this.name.trim() === "") {
+            alert('用户名不能为空')
+            return
+          }
+          this.socket.send(JSON.stringify({
+            name: this.name,
+            roomid: this.roomid,
+            uid,
+            event: 'login'
+          }))
+          this.isShow = false
+        },
+        checkServer() {
+          // 心跳连接
+          // 计时器去定时检测websocket的连接
+          // clearInterval(this.timer)
+          // // 超时之后，即会执行
+          // this.timer = setInterval(() => {
+          //   // 主动断开服务器端的连接
+          //   this.onclose()
+          //   // 再次初始化websocket连接
+          //   this.init()
+          // }, 5000 + 1000)
+        },
+        init() {
+          this.socket = new WebSocket('ws://localhost:8025/')
+          this.socket.onopen = this.onopen
+          this.socket.onmessage = this.onmessage
+          this.socket.onerror = this.onerror
+        }
+      },
+      mounted() {
+        this.init()
+      }
+    })
+  </script>
+</body>
+
+</html>
